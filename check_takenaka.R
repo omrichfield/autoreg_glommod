@@ -51,6 +51,7 @@ tak_err_dilt <- tak_err(
   furo_yn = 0,
   dilt_yn=1,
   int_yn=0,
+  TGF_only_yn=0,
   int_low=int_low,
   int_high=int_high)
 D_pred_dilt <- tak_err_dilt$D_zer
@@ -58,7 +59,7 @@ Q_pred_dilt <- tak_err_dilt$Q
 plot(Try_Pf,D_pred_dilt,type='l',ylim=c(5,11),xlab="Perfusion Pressure (mmHg)",ylab="AA Diameter, um")
 points(c(100,125,150),D_aa_dilt)
 
-#plot(Try_Pf,tak_err_furo$err)
+#plot(Try_Pf,tak_err_furo$err) 
 #plot(Try_Pf,tak_err_furo$Tp,type='l')
 #plot(Try_Pf,D_pred_furo,type='l',ylim=c(5,8),xlab="Perfusion Pressure (mmHg)",ylab="AA Diameter, um")
 #points(c(100,125,150),D_aa_furo)
@@ -81,6 +82,7 @@ tak_err_furo <- tak_err(
   furo_yn = 1,
   dilt_yn=0,
   int_yn=0,
+  TGF_only_yn=0,
   int_low=int_low,
   int_high=int_high)
 D_pred_furo <- tak_err_furo$D_zer
@@ -103,6 +105,7 @@ tak_err_cont <- tak_err(
   furo_yn = 0,
   dilt_yn=0,
   int_yn=0,
+  TGF_only_yn=0,
   int_low=int_low,
   int_high=int_high)
 D_pred_cont <- tak_err_cont$D_zer
@@ -123,10 +126,37 @@ tak_err_cont_int <- tak_err(
   furo_yn = 0,
   dilt_yn=0,
   int_yn=1,
+  TGF_only_yn=0,
   int_low=int_low,
   int_high=int_high)
 D_pred_cont_int <- tak_err_cont_int$D_zer
 S_TGF_pred <- tak_err_cont$S_TGF
+
+lines(Try_Pf,D_pred_cont_int,type='l',ylim=c(5,8))
+
+
+Try_C_MD <- c(0.1,seq(5, 200, 5))
+Try_Pf <- 100*Try_C_MD/Try_C_MD
+bell_err_cont <- bell_err(
+  P_aa_input=Paa_i*Try_C_MD/Try_C_MD,
+  D_aa_input=c(max(D_aa_cont),min(D_aa_cont),mean(D_aa_cont)*rep(1,length(Try_C_MD)-2)),
+  Ca_input = Ca_i*Try_C_MD/Try_C_MD,
+  C_MD_input=Try_C_MD,
+  surr_glom_df = surr_glom_df,
+  PT_frac = PT_frac*Try_C_MD/Try_C_MD,
+  C_0_Tub = C_0_Tub,
+  furo_yn = 0,
+  dilt_yn=0,
+  int_yn=0,
+  TGF_only_yn=0,
+  int_low=int_low,
+  int_high=int_high)
+#D_pred_cont <- bell_err_cont$D_zer
+S_TGF_pred <- bell_err_cont$S_TGF
+P_GC_bell <- bell_err_cont$PG
+plot(Try_C_MD,P_GC_bell,type='l')
+points(c(50, 100, 125),P_GC_bell[1]+c(-3, -10, -13)) 
+Try_Pf <- seq(100,150,2.5)
 
 #Get Steady-state mechanics (SS, HS, CSGFR/SA)
 
@@ -278,11 +308,11 @@ lines(0:200, S_TGF_try(C_try=0:200) ,type='l')
 lines(Try_Pf, tak_err_cont$SNGFR,type='l')
 
 
-writeMat("Myo_TGF_model_curves_20231001.mat",D_pred_dilt=D_pred_dilt,
+writeMat("Myo_TGF_model_curves_20240505.mat",D_pred_dilt=D_pred_dilt,
                                     D_pred_furo=D_pred_furo,
                                     D_pred_cont=D_pred_cont,
                                     D_pred_cont_int=D_pred_cont_int,
-                                    Q_pred_dilt=Q_pred_dilt,
+                                    Q_pred_dilt=tak_err_dilt$Q_out,
                                     Q_pred_furo=tak_err_furo$Q_out,
                                     Q_pred_cont=tak_err_cont$Q_out,
                                     Q_pred_cont_int=tak_err_cont_int$Q_out,
@@ -309,6 +339,10 @@ writeMat("Myo_TGF_model_curves_20231001.mat",D_pred_dilt=D_pred_dilt,
                                     S_Myo_cont=tak_err_cont$S_Myo,
                                     S_Myo_cont_int=tak_err_cont_int$S_Myo,
                                     Try_Pf=Try_Pf,
+                                    Try_C_MD=Try_C_MD,
+                                    P_GC_bell=P_GC_bell,
+                                    bell_conc_points=c(50, 100, 125),
+                                    bell_P_points=P_GC_bell[1]+c(-3, -10, -13),
                                     Tp_show=100:600,
                                     C_MD_show=0:200,
                                     S_TGF_show=S_TGF_try(C_try=0:200),

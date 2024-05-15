@@ -387,7 +387,7 @@ S_max <- max(start.data$S_tone_m)
 S_min <- -0.5
 C_MD_max <- 150
 C_MD_min <- 25
-C_MD_mid <- 40#(C_MD_max+C_MD_min)/2
+C_MD_mid <- 50#(C_MD_max+C_MD_min)/2
 
 S_TGF_try <- function(C_try,C){
   out <- (S_max-S_min)/(1+exp(-C*(C_try - C_MD_mid))) + S_min
@@ -461,7 +461,8 @@ for (i in seq(D_aa_input)){
                  C_0_Tub = C_0_Tub,
                  furo_yn = 0,
                  dilt_yn = 0,
-                 int_yn=0)
+                 int_yn=0,
+                 TGF_only_yn = 0)
   
   Tp_aa_output[i] <- CT$Tp
   C_MD_output[i] <- CT$C_MD

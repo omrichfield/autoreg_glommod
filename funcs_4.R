@@ -1201,6 +1201,177 @@ return(list(err=err, D_zer = D_zer_out, C_MD = C_MD_out,S_Myo = S_myo_out, S_TGF
             Tp = Tp_out, S_tone=S_tone_out,SNGFR=SNGFR_out,Q_out=Q_out,Qloop=Qloop_out))
 }
 
+check_bell <- function(    D, 
+                           Pa, 
+                           Ca,
+                           C_MD,
+                           surr_glom_df,
+                           PT_frac,
+                           C_0_Tub,
+                           furo_yn,
+                           dilt_yn,
+                           int_yn,
+                           TGF_only_yn){
+  
+  GG <- glom_SS(Pa=Pa, Ca=Ca, D=D, surr_glom_df = surr_glom_df)
+  SNGFR <- GG$SNGFR
+  Pavg <- GG$Pavg
+  Q <- GG$Q
+  
+  Tp <- D*(Pavg - P_ext)/2
+  Tp0 <- Tp_cont#DAA_0*(glom_SS(Pa=Paa_i, Ca=Ca_i, D=DAA_0,surr_glom_df = surr_glom_df)$Pavg - P_ext)/2
+  
+  T_pass <- C_pass0*exp(C_pass1*(D/DAA_0-1))
+  T_act <- C_act0*exp(-((D/DAA_0-1)/C_act1)^2)
+
+  S_TGF <- Splus_TGF/(1+exp(-C_TGF*(C_MD - C_MD_TGF))) + Smin_TGF
+  
+  if (furo_yn==0){
+    S_TGF_func <- S_TGF # + S_0
+  }else{
+    S_TGF_func <- 0
+  }
+  
+  if (int_yn==0){
+    Tp_temp <- Tp_myo
+    C_temp <- C_myo
+  }else{
+    Tp_temp <- Tp_TGF
+    C_temp <- C_int
+  }
+  
+  if (dilt_yn){
+    T_act<-0
+  }
+  
+  
+  S_myo <- Splus_myo/(1+exp(-C_temp*(Tp - Tp_temp))) + Smin_myo
+  S_myo_func <- S_myo
+  
+  if (TGF_only_yn){
+    S_myo_func<-0
+  }
+  
+  S_tone <- S_TGF_func + S_myo_func #+ C_MyoTGF*S_TGF_func*S_myo_func + S_0
+  
+  A <- 1/(1+exp(-S_tone))
+  
+  return(data.frame(D=D,
+                    Tp=Tp,
+                    Pa=Pavg,
+                    T_pass=T_pass,
+                    T_act=T_act,
+                    S_TGF=S_TGF,
+                    S_myo=S_myo,
+                    SNGFR=SNGFR,
+                    C_MD=C_MD,
+                    A=A,
+                    S_tone=S_tone,
+                    err=Tp-T_pass-A*T_act,
+                    Q=Q))
+  
+}
+
+bell_err <- function(P_aa_input,
+                    D_aa_input,
+                    Ca_input,
+                    C_MD_input,
+                    surr_glom_df,
+                    PT_frac,
+                    C_0_Tub,
+                    furo_yn,
+                    dilt_yn,
+                    int_yn,
+                    TGF_only_yn,
+                    int_low,
+                    int_high){
+  
+  D_zer <- 0*P_aa_input
+  C_MD_out <- 0*P_aa_input
+  Tp_out <- 0*P_aa_input
+  S_tone_out <- 0*P_aa_input
+  S_myo_out <- 0*P_aa_input
+  S_TGF_out <- 0*P_aa_input
+  err <- 0*P_aa_input
+  SNGFR_out <- 0*P_aa_input
+  Q_out <- 0*P_aa_input
+  PG_out <- 0*P_aa_input
+  Qloop_out <- 0*P_aa_input
+  
+  D_try <- seq(int_low,int_high,(int_high-int_low)/20)
+  
+  for (i in seq(C_MD_input)){
+    err_x <- 0*D_try
+    for (j in 1:length(D_try)){
+      BB1 <- check_bell(D=D_try[j],
+                            Pa=P_aa_input[i],
+                            Ca = Ca_input[i],
+                            C_MD = C_MD_input[i],
+                            surr_glom_df = surr_glom_df,
+                            PT_frac=PT_frac[i],
+                            C_0_Tub=C_0_Tub,
+                            furo_yn=furo_yn,
+                            dilt_yn=dilt_yn,
+                            int_yn=int_yn,
+                            TGF_only_yn=TGF_only_yn)
+      err_x[j] <- BB1$err
+    }
+    
+    #plot(spline(D_try,err_x))
+    ff <- splinefun(D_try,err_x)
+    
+    if (ff(int_low)*ff(int_high)>0){
+      int_high_neg_temp <- D_try[which.min(err_x)]
+      if (1==0){#(int_high_neg_temp < int_low){
+        int_high_neg <- int_low
+        int_low <- int_high_neg_temp
+      }else{
+        int_high_neg <- int_high_neg_temp
+      }
+    }else{
+      int_high_neg<-int_high
+      #print('neg product')
+    }
+    
+    optim_dummy <- uniroot(ff,interval=c(int_low,int_high_neg),maxiter=1e5)
+    #print(optim_dummy)
+    D_zer[i] <- optim_dummy$root   #BFfzero(dummy_tak,10,30) #
+    #print(D_zer[i])
+    
+    BB <- check_bell(D=D_zer[i],
+                         Ca = Ca_input[i],
+                         Pa=P_aa_input[i],
+                         C_MD=C_MD_input[i],
+                         surr_glom_df=surr_glom_df,
+                         PT_frac=PT_frac[i],
+                         C_0_Tub=C_0_Tub,
+                         furo_yn=furo_yn,
+                         dilt_yn=dilt_yn,
+                         int_yn=int_yn,
+                         TGF_only_yn=TGF_only_yn)
+    
+    
+    A <- BB$A
+    Tp <- BB$Tp
+    T_act <- BB$T_act
+    T_pass <- BB$T_pass
+    err[i] <- Tp - A*T_act - T_pass
+    C_MD_out[i] <- BB$C_MD
+    S_myo_out[i] <- BB$S_myo
+    S_TGF_out[i] <- BB$S_TGF
+    Tp_out[i] <- BB$Tp
+    S_tone_out[i] <- BB$S_tone
+    SNGFR_out[i] <- BB$SNGFR
+    PG_out[i] <- 2*BB$Pa - Try_Pf[i]
+    Q_out[i] <- BB$Q
+  }
+  D_zer_out <- as.numeric(D_zer)
+  
+  return(list(err=err, D_zer = D_zer_out, C_MD = C_MD_out,S_Myo = S_myo_out, S_TGF=S_TGF_out, PG=PG_out,
+              Tp = Tp_out, S_tone=S_tone_out,SNGFR=SNGFR_out,Q_out=Q_out))
+}
+
+
 ss_Tubule <- function(x, Css, parameters){
   Ce = Ce_calc(x)
   Q <- as.numeric(parameters["Loop_Flow"])
